@@ -1,0 +1,14 @@
+-- * Special routes (MODIFY AT YOUR OWN RISK!)
+/static                 StaticR         Static getStatic
+/auth                   AuthR           Auth   getAuth
+
+/favicon.ico            FaviconR        GET
+/robots.txt             RobotsR         GET
+
+-- * Your routes go here
+/                       HomeR           GET
+/user                   AllUsersR       GET
+/user/#UserId           UserR           GET
+/receipt                AllReceiptsR    GET POST
+/receipt/#ReceiptId     ReceiptR        GET POST
+/payment                PaymentsR       GET POST
