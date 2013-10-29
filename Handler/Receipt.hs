@@ -46,7 +46,17 @@ postAllReceiptsR = do
 -- Display a receipt
 getReceiptR :: ReceiptId -> Handler Html
 getReceiptR receiptId = do
-    error "getReceiptR not implemented yet!"
+    receipt <- runDB $ get receiptId
+    case receipt of
+        Just receipt' -> return [shamlet|
+                Receipt #{show receiptId}:
+                    $with Receipt paidBy paidTotal owed <- receipt'
+                        <p>Total cost: #{show paidTotal}
+                        Those still owe you #{show $ div paidTotal (length owed)} each:
+                        $forall ReceiptUser receipt user <- owed
+                            #{show $ userIdent user}
+                |]
+        Nothing -> return [shamlet|Receipt ID not found|]
     
 -- Add a user to a receipt
 postReceiptR :: ReceiptId -> Handler Html
