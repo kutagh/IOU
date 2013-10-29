@@ -20,8 +20,24 @@ receiptUserForm receiptId = renderDivs $
 -- List all receipts
 getAllReceiptsR :: Handler Html
 getAllReceiptsR = do
-    error "getAllReceiptsR not implemented yet!"
+    receipts <- getReceipts
+    html <- printAllReceipts receipts
+    renderer <- getUrlRenderParams
+    return (html renderer)
+    
+printAllReceipts receipts = return [hamlet|
+    $if null receipts
+        <p>There are no receipts entered in the system
+    $else
+        <p>An overview of all receipts in the system:
+        $forall Entity receiptID receipt <- receipts
+            <a href=@{ReceiptR receiptID}>#{show receipt}
+    |]
         
+getReceipts = do
+    receipts <- runDB $ selectList [] [Asc ReceiptPaidBy] 
+    return receipts
+
 -- Add a new receipt
 postAllReceiptsR :: Handler Html
 postAllReceiptsR = do

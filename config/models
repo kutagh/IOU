@@ -5,7 +5,7 @@ User
     ident Text
     password Text Maybe
     UniqueUser ident
-    deriving Typeable
+    deriving Typeable Show
 Email
     email Text
     user UserId Maybe
@@ -16,11 +16,15 @@ Email
 
 -- An entity modeling receipts
 Receipt
-    -- TODO: Add more fields here
-
+    paidBy User
+	paidTotal Int
+	owed [ReceiptUser]
+	deriving Show
 -- An entity that models the many-to-many relation between Receipts and Users
 ReceiptUser                     
-    -- TODO: Add more fields here
+    receipt Receipt
+	user User
+	deriving Show
 
 -- An entity modeling payments
 Payment
