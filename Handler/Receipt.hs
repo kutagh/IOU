@@ -47,17 +47,22 @@ postAllReceiptsR = do
 getReceiptR :: ReceiptId -> Handler Html
 getReceiptR receiptId = do
     receipt <- runDB $ get receiptId
+    debtors <- getDebtsByReceipt receiptId
+    renderer <- getUrlRenderParams
     case receipt of
-        Just receipt' -> return [shamlet|
+        Just receipt' -> return ([hamlet|
                 Receipt #{show receiptId}:
-                    $with Receipt paidBy paidTotal owed <- receipt'
+                    $with Receipt paidBy paidTotal <- receipt'
                         <p>Total cost: #{show paidTotal}
-                        Those still owe you #{show $ div paidTotal (length owed)} each:
-                        $forall ReceiptUser receipt user <- owed
-                            #{show $ userIdent user}
-                |]
+                        <p>Debtors with a debt of #{show $ div paidTotal $ length debtors}:
+                        $forall (_, Entity userId user) <- debtors
+                            <li><a href=@{UserR userId}>#{show $ userIdent user}</a>
+                |] renderer)
         Nothing -> return [shamlet|Receipt ID not found|]
+        
     
+getDebtsByReceipt = join receiptUserUser ReceiptUserReceipt
+
 -- Add a user to a receipt
 postReceiptR :: ReceiptId -> Handler Html
 postReceiptR receiptId = do

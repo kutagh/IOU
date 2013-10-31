@@ -22,17 +22,20 @@ printAllUsers users = return [hamlet|
         
 getUserR :: UserId -> Handler Html
 getUserR userId = do
-    user <- runDB $ get userId
-    case user of
-        Just user' -> do
-            receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. user'] []
-            rbuHtml <- printAllReceipts receiptsByUser (userIdent user')
-            composed <- composer [rbuHtml]
+    user' <- runDB $ get userId
+    case user' of
+        (Just user) -> do
+            receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. user] []
+            debtsOfUser <- getDebtsByUser userId
+            rbuHtml <- printAllReceipts receiptsByUser (userIdent user)
+            douHtml <- printAllDebts debtsOfUser (userIdent user)
+            composed <- composer [rbuHtml, douHtml]
             renderer <- getUrlRenderParams
             return (composed renderer)
         Nothing -> return [shamlet|User not found|]
 
-        
+getDebtsByUser = join receiptUserReceipt ReceiptUserUser
+       
 printAllReceipts receipts paidBy = return [hamlet|
     $if null receipts
         <p>#{paidBy} has not entered any receipts into the system.
@@ -41,7 +44,16 @@ printAllReceipts receipts paidBy = return [hamlet|
         $forall Entity receiptId receipt <- receipts
             <li><a href=@{ReceiptR receiptId}>#{show receiptId}</a>
         |]
-            
+
+printAllDebts debts debtor = return [hamlet|
+    $if null debts
+        <p>#{debtor} is not a debtor for any receipts in our system
+    $else
+        <p>Overview of receipts for which #{debtor} is a debtor:
+        $forall (_,(Entity receiptId _)) <- debts
+            <li><a href=@{ReceiptR receiptId}>#{show receiptId}</a>
+        |]
+        
 composer toCompose = return [hamlet|
     $if null toCompose
         <p>Error: Tried to compose zero items

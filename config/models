@@ -18,13 +18,12 @@ Email
 Receipt
     paidBy User
 	paidTotal Int
-	owed [ReceiptUser]
-	UniqueReceipt paidBy paidTotal owed
+	UniqueReceipt paidBy paidTotal
 	deriving Show
 -- An entity that models the many-to-many relation between Receipts and Users
 ReceiptUser                     
-    receipt Receipt
-	user User
+    receipt ReceiptId
+	user UserId
 	UniqueReceiptUser receipt user
 	deriving Show
 

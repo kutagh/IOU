@@ -31,3 +31,9 @@ infixr 5 <>
 (<>) :: Monoid m => m -> m -> m
 (<>) = mappend
 #endif
+
+
+join targetColumn filterColumn key = runDB $ do
+    table1 <- selectList [] []
+    table2 <- selectList [filterColumn ==. key] []
+    return $ joinTables targetColumn table2 table1
