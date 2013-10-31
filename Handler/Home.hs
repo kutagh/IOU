@@ -14,17 +14,23 @@ import Import
 -- * Home
 
 getHomeR :: Handler Html
-getHomeR = defaultLayout $ do
-    setTitle "IOU"
-    [whamlet|
-        <p>Welcome!
-        <ul>
-            <li>
-                <a href=@{AuthR LoginR}>Login
-            <li>
-                <a href=@{AllUsersR}>Show all users
-            <li>
-                <a href=@{AllReceiptsR}>Show all receipts
-            <li>
-                <a href=@{PaymentsR}>Show all payments
-    |]
+getHomeR = do
+    muser <- maybeAuth
+    defaultLayout $ do
+        setTitle "IOU"
+        [whamlet|
+            <p>Welcome!
+            <ul>
+                <li>
+                $maybe user <- muser
+                    You're currently logged in as: #{userIdent (entityVal user)}
+                    <a href=@{AuthR LogoutR}>Log out
+                $nothing
+                    <a href=@{AuthR LoginR}>Login
+                <li>
+                    <a href=@{AllUsersR}>Show all users
+                <li>
+                    <a href=@{AllReceiptsR}>Show all receipts
+                <li>
+                    <a href=@{PaymentsR}>Show all payments
+        |]

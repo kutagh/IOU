@@ -16,7 +16,7 @@ Email
 
 -- An entity modeling receipts
 Receipt
-    paidBy User
+    paidBy UserId
 	paidTotal Int
 	UniqueReceipt paidBy paidTotal
 	deriving Show

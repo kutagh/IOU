@@ -25,7 +25,7 @@ getUserR userId = do
     user' <- runDB $ get userId
     case user' of
         (Just user) -> do
-            receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. user] []
+            receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. userId] []
             debtsOfUser <- getDebtsByUser userId
             rbuHtml <- printAllReceipts receiptsByUser (userIdent user)
             douHtml <- printAllDebts debtsOfUser (userIdent user)
