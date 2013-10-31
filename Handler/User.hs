@@ -2,7 +2,7 @@
 module Handler.User where
 
 import Import
-import Text.Shakespeare.Text
+import Data.Maybe
 
 getAllUsersR :: Handler Html
 getAllUsersR = do
@@ -25,17 +25,27 @@ getUserR userId = do
     user <- runDB $ get userId
     case user of
         Just user' -> do
-            receipts <- runDB $ selectList [ReceiptPaidBy ==. user'] []
-            html <- printAllReceipts receipts (userIdent user')
+            receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. user'] []
+            rbuHtml <- printAllReceipts receiptsByUser (userIdent user')
+            composed <- composer [rbuHtml]
             renderer <- getUrlRenderParams
-            return (html renderer)
+            return (composed renderer)
         Nothing -> return [shamlet|User not found|]
 
+        
 printAllReceipts receipts paidBy = return [hamlet|
     $if null receipts
-        <p>You have not entered any receipts into the system.
+        <p>#{paidBy} has not entered any receipts into the system.
     $else
         <p>Overview of receipts created/paid by #{paidBy}:
         $forall Entity receiptId receipt <- receipts
             <li><a href=@{ReceiptR receiptId}>#{show receiptId}</a>
         |]
+            
+composer toCompose = return [hamlet|
+    $if null toCompose
+        <p>Error: Tried to compose zero items
+    $else
+        $forall element <- toCompose
+            ^{element}
+    |]
