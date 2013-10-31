@@ -20,13 +20,15 @@ getHomeR = do
         setTitle "IOU"
         [whamlet|
             <p>Welcome!
+            $maybe user <- muser
+                <p>You're currently logged in as: #{userIdent (entityVal user)}
             <ul>
-                <li>
                 $maybe user <- muser
-                    You're currently logged in as: #{userIdent (entityVal user)}
-                    <a href=@{AuthR LogoutR}>Log out
+                    <li>
+                        <a href=@{AuthR LogoutR}>Log out
                 $nothing
-                    <a href=@{AuthR LoginR}>Login
+                    <li>
+                        <a href=@{AuthR LoginR}>Login
                 <li>
                     <a href=@{AllUsersR}>Show all users
                 <li>
