@@ -3,15 +3,16 @@ module Handler.User where
 
 import Import
 import Data.Maybe
+import Text.Shakespeare.Text
 
 getAllUsersR :: Handler Html
 getAllUsersR = do
     users <- runDB $ selectList [] [Asc UserIdent]
-    html <- printAllUsers users
+    let html = printAllUsers users
     renderer <- getUrlRenderParams
     return (html renderer)
         
-printAllUsers users = return [hamlet|
+printAllUsers users = [hamlet|
     $if null users
         <p>There are no users registered.
     $else
@@ -27,14 +28,32 @@ getUserR userId = do
         (Just user) -> do
             receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. userId] []
             debtsOfUser <- getDebtsByUser userId
+            paidByUser <- getPaymentsMadeByUser userId
+            sentByUser <- getPaymentsReceivedByUser userId
             rbuHtml <- printAllReceipts receiptsByUser (userIdent user)
             douHtml <- printAllDebts debtsOfUser (userIdent user)
-            composed <- composer [rbuHtml, douHtml]
+            pbuHtml <- printAllPayments 
+                ("Payments made by" :: Text) 
+                ("No payments made by" :: Text)
+                (userIdent user) 
+                ("transferred" :: Text) 
+                ("to" :: Text) 
+                paidByUser
+            sbuHtml <- printAllPayments
+                ("Payments received by" :: Text) 
+                ("No payments received by" :: Text)
+                (userIdent user) 
+                ("received" :: Text) 
+                ("from" :: Text) 
+                sentByUser
+            composed <- composer [rbuHtml, douHtml, pbuHtml, sbuHtml]
             renderer <- getUrlRenderParams
             return (composed renderer)
         Nothing -> return [shamlet|User not found|]
 
 getDebtsByUser = join receiptUserReceipt ReceiptUserUser
+getPaymentsMadeByUser = join paymentTo PaymentFrom
+getPaymentsReceivedByUser = join paymentFrom PaymentTo
        
 printAllReceipts receipts paidBy = return [hamlet|
     $if null receipts
@@ -53,6 +72,15 @@ printAllDebts debts debtor = return [hamlet|
         $forall (_,(Entity receiptId _)) <- debts
             <li><a href=@{ReceiptR receiptId}>#{show receiptId}</a>
         |]
+
+printAllPayments header empty user action direction payments = return [hamlet|
+    $if null payments
+        <p>#{empty} #{user}
+    $else
+        <p>#{header} #{user}
+        $forall (Entity pid (Payment time from to amount), Entity tid tu) <- payments
+            <p>Payment #{show pid} made at #{show time}, #{action} #{show amount} #{direction} <a href=@{UserR tid}>#{userIdent tu}</a>.
+    |]
         
 composer toCompose = return [hamlet|
     $if null toCompose

@@ -28,20 +28,29 @@ getAllReceiptsR = do
     return html
     
 printAllReceipts receipts = do 
-    (widget, enctype) <- generateFormPost receiptForm
-    defaultLayout [whamlet|
+    mu <- maybeAuth
+    widget <- addReceiptForm mu
+    defaultLayout $ do [whamlet|
         $if null receipts
             <p>There are no receipts entered in the system
         $else
             <p>An overview of all receipts in the system:
             $forall Entity receiptID receipt <- receipts
-                <a href=@{ReceiptR receiptID}>#{show receipt}
-        <p>Add a new receipt:
-        <form method=post action=@{AllReceiptsR} enctype=#{enctype}>
-            ^{widget}
-            <button>Submit
+                <p>
+                    <a href=@{ReceiptR receiptID}>#{show receiptID}
+        ^{widget}
         |]
-        
+
+addReceiptForm mu = case mu of
+    Just _ -> do 
+        (widget, enctype) <- generateFormPost receiptForm
+        return [whamlet|
+            <p>Add a new receipt:
+                <form method=post enctype=#{enctype}>
+                    ^{widget}
+                    <button>Submit|]
+    _ -> return [whamlet|<p>You need to be logged in to add a new receipt|]
+
 getReceipts = do
     receipts <- runDB $ selectList [] [Asc ReceiptPaidBy] 
     return receipts
@@ -65,26 +74,28 @@ postAllReceiptsR = do
 -- Display a receipt
 getReceiptR :: ReceiptId -> Handler Html
 getReceiptR receiptId = do
-    receipt <- runDB $ get receiptId
+    receipt <- runDB $ get404 receiptId
     debtors <- getDebtsByReceipt receiptId
     renderer <- getUrlRenderParams
     (widget, enctype) <- generateFormPost (receiptUserForm receiptId)
-    case receipt of
-        Just receipt' -> defaultLayout [whamlet|
-                Receipt #{show receiptId}:
-                    $with Receipt paidBy paidTotal <- receipt'
-                        <p>Total cost: #{show paidTotal}
-                        $if null debtors
-                            <p>There are no debtors yet for this receipt
-                        $else
-                            <p>Debtors with a debt of #{show $ div paidTotal $ length debtors}:
-                            $forall (_, Entity userId user) <- debtors
-                                <li><a href=@{UserR userId}>#{show $ userIdent user}</a>
-                        <form method=post action=@{ReceiptR receiptId} enctype=#{enctype}>
-                            ^{widget}
-                            <button>Submit
-                |]
-        Nothing -> return [shamlet|Receipt ID not found|]
+    mu <- maybeAuth
+    defaultLayout [whamlet|
+        <section>
+        Receipt #{show receiptId}:
+            $with Receipt paidBy paidTotal <- receipt
+                <p>Total cost: #{show paidTotal}
+                $if null debtors
+                    <p>There are no debtors yet for this receipt
+                $else
+                    <p>Debtors with a debt of #{show $ div paidTotal $ length debtors}:
+                    $forall (_, Entity userId user) <- debtors
+                        <li><a href=@{UserR userId}>#{show $ userIdent user}</a>
+            <section>
+            $maybe _ <- mu
+                <form method=post enctype=#{enctype}>
+                    ^{widget}
+                    <button>Submit
+        |]
         
     
 getDebtsByReceipt = join receiptUserUser ReceiptUserReceipt

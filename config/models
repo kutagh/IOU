@@ -32,6 +32,7 @@ Payment
     timestamp UTCTime
     from UserId
     to UserId
+	amount Int
     -- TODO: Add more fields here
 
 
