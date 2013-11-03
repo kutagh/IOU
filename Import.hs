@@ -32,7 +32,7 @@ infixr 5 <>
 (<>) = mappend
 #endif
 
-
+getDebtsByReceipt = join receiptUserUser ReceiptUserReceipt
 join targetColumn filterColumn key = runDB $ do
     table1 <- selectList [] []
     table2 <- selectList [filterColumn ==. key] []

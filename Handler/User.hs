@@ -3,6 +3,7 @@ module Handler.User where
 
 import Import
 import Data.Maybe
+import Data.Map hiding (null, map)
 import Text.Shakespeare.Text
 
 getAllUsersR :: Handler Html
@@ -22,14 +23,14 @@ printAllUsers users = [hamlet|
         |]
         
 getUserR :: UserId -> Handler Html
-getUserR userId = do
-    user' <- runDB $ get userId
+getUserR id = do
+    user' <- runDB $ get id
     case user' of
         (Just user) -> do
-            receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. userId] []
-            debtsOfUser <- getDebtsByUser userId
-            paidByUser <- getPaymentsMadeByUser userId
-            sentByUser <- getPaymentsReceivedByUser userId
+            receiptsByUser <- runDB $ selectList [ReceiptPaidBy ==. id] []
+            debtsOfUser <- getDebtsByUser id
+            paidByUser <- getPaymentsMadeByUser id
+            sentByUser <- getPaymentsReceivedByUser id
             rbuHtml <- printAllReceipts receiptsByUser (userIdent user)
             douHtml <- printAllDebts debtsOfUser (userIdent user)
             pbuHtml <- printAllPayments 
@@ -81,7 +82,26 @@ printAllPayments header empty user action direction payments = return [hamlet|
         $forall (Entity pid (Payment time from to amount), Entity tid tu) <- payments
             <p>Payment #{show pid} made at #{show time}, #{action} #{show amount} #{direction} <a href=@{UserR tid}>#{userIdent tu}</a>.
     |]
-        
+    
+paymentsYetToReceive userId = do
+    receipts <- runDB $ selectList [ReceiptPaidBy ==. userId] []
+    joined <- joiner receipts
+    converted <- test joined empty
+    return receipts
+    where
+        joiner ((Entity rid r):rs) = do
+            debts <- selectList [ReceiptUserReceipt ==. rid] []
+            tail <- joiner rs
+            return ((Entity rid r, debts):tail)
+        test ((Entity rid r, users):xs) datamap = updater users (test xs datamap) where
+            updater ((Entity ruid ru):rus) dm
+                | member (receiptUserUser ru) dm = adjust (+avgDebt) (receiptUserUser ru) dm
+                | otherwise = Data.Map.insert (receiptUserUser ru) avgDebt dm
+            updater [] datamap = datamap
+            avgDebt = div (receiptPaidTotal r) (length users)
+        test [] datamap = datamap
+
+    
 composer toCompose = return [hamlet|
     $if null toCompose
         <p>Error: Tried to compose zero items

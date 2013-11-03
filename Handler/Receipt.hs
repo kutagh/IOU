@@ -96,9 +96,6 @@ getReceiptR receiptId = do
                     ^{widget}
                     <button>Submit
         |]
-        
-    
-getDebtsByReceipt = join receiptUserUser ReceiptUserReceipt
 
 -- Add a user to a receipt
 postReceiptR :: ReceiptId -> Handler Html
