@@ -3,11 +3,13 @@ module Handler.Receipt where
 
 import Import
 
+-- Form for creating a receipt
 receiptForm :: Form Receipt
 receiptForm = renderDivs $ Receipt
     <$> lift requireAuthId
     <*> areq intField "Total paid by you:" (Just 0)
 
+-- Form for adding an user to a receipt
 receiptUserForm :: ReceiptId -> Form ReceiptUser
 receiptUserForm receiptId = renderDivs $ ReceiptUser 
     <$> pure receiptId
@@ -23,37 +25,9 @@ receiptUserForm receiptId = renderDivs $ ReceiptUser
 -- List all receipts
 getAllReceiptsR :: Handler Html
 getAllReceiptsR = do
-    receipts <- getReceipts
+    receipts <- runDB $ selectList [] [Asc ReceiptPaidBy] 
     html <- printAllReceipts receipts
     return html
-    
-printAllReceipts receipts = do 
-    mu <- maybeAuth
-    widget <- addReceiptForm mu
-    defaultLayout $ do [whamlet|
-        $if null receipts
-            <p>There are no receipts entered in the system
-        $else
-            <p>An overview of all receipts in the system:
-            $forall Entity receiptID receipt <- receipts
-                <p>
-                    <a href=@{ReceiptR receiptID}>#{show receiptID}
-        ^{widget}
-        |]
-
-addReceiptForm mu = case mu of
-    Just _ -> do 
-        (widget, enctype) <- generateFormPost receiptForm
-        return [whamlet|
-            <p>Add a new receipt:
-                <form method=post enctype=#{enctype}>
-                    ^{widget}
-                    <button>Submit|]
-    _ -> return [whamlet|<p>You need to be logged in to add a new receipt|]
-
-getReceipts = do
-    receipts <- runDB $ selectList [] [Asc ReceiptPaidBy] 
-    return receipts
 
 -- Add a new receipt
 postAllReceiptsR :: Handler Html
@@ -75,26 +49,30 @@ postAllReceiptsR = do
 getReceiptR :: ReceiptId -> Handler Html
 getReceiptR receiptId = do
     receipt <- runDB $ get404 receiptId
+    creator <- runDB $ get404 $ receiptPaidBy receipt
     debtors <- getDebtsByReceipt receiptId
     renderer <- getUrlRenderParams
-    (widget, enctype) <- generateFormPost (receiptUserForm receiptId)
     mu <- maybeAuth
+    (widget, enctype) <- generateFormPost (receiptUserForm receiptId)
     defaultLayout [whamlet|
         <section>
-        Receipt #{show receiptId}:
+        <p>Receipt creator: 
+            <p>
+                <a href=@{UserR (receiptPaidBy receipt)}>#{show (userIdent creator)}
             $with Receipt paidBy paidTotal <- receipt
                 <p>Total cost: #{show paidTotal}
                 $if null debtors
                     <p>There are no debtors yet for this receipt
                 $else
-                    <p>Debtors with a debt of #{show $ div paidTotal $ length debtors}:
+                    <p>Debtors with a debt of #{show $ div paidTotal $ 1 + length debtors} each:
                     $forall (_, Entity userId user) <- debtors
                         <li><a href=@{UserR userId}>#{show $ userIdent user}</a>
             <section>
-            $maybe _ <- mu
-                <form method=post enctype=#{enctype}>
-                    ^{widget}
-                    <button>Submit
+            $maybe Entity uid _ <- mu
+                $if uid == (receiptPaidBy receipt)
+                    <form method=post enctype=#{enctype}>
+                        ^{widget}
+                        <button>Submit
         |]
 
 -- Add a user to a receipt
@@ -113,3 +91,29 @@ postReceiptR receiptId = do
             renderer <- getUrlRenderParams
             return (html renderer)
         _ -> return [shamlet|Failed to add the user to the receipt.|]
+    
+-- Pretty print a list of receipts    
+printAllReceipts receipts = do 
+    mu <- maybeAuth
+    widget <- addReceiptForm mu
+    defaultLayout $ do [whamlet|
+        $if null receipts
+            <p>There are no receipts entered in the system
+        $else
+            <p>An overview of all receipts in the system:
+            $forall Entity receiptID receipt <- receipts
+                <li>
+                    <a href=@{ReceiptR receiptID}>Receipt
+        ^{widget}
+        |]
+
+-- 'hack' to avoid a required log in to see the overview of receipts
+addReceiptForm mu = case mu of
+    Just _ -> do 
+        (widget, enctype) <- generateFormPost receiptForm
+        return [whamlet|
+            <p>Add a new receipt:
+                <form method=post enctype=#{enctype}>
+                    ^{widget}
+                    <button>Submit|]
+    _ -> return [whamlet|<p>You need to be logged in to add a new receipt|]
